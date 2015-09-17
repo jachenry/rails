@@ -31,7 +31,6 @@ module ActionController
     autoload :Instrumentation
     autoload :MimeResponds
     autoload :ParamsWrapper
-    autoload :RackDelegation
     autoload :Redirecting
     autoload :Renderers
     autoload :Rendering

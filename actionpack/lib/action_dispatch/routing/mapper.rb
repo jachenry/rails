@@ -1,10 +1,8 @@
-require 'active_support/core_ext/hash/except'
 require 'active_support/core_ext/hash/reverse_merge'
 require 'active_support/core_ext/hash/slice'
 require 'active_support/core_ext/enumerable'
 require 'active_support/core_ext/array/extract_options'
-require 'active_support/core_ext/module/remove_method'
-require 'active_support/inflector'
+require 'active_support/core_ext/regexp'
 require 'active_support/deprecation'
 require 'action_dispatch/routing/redirection'
 require 'action_dispatch/routing/endpoint'
@@ -283,12 +281,16 @@ module ActionDispatch
           end
 
           def app(blocks)
-            if to.respond_to?(:call)
-              Constraints.new(to, blocks, Constraints::CALL)
-            elsif blocks.any?
-              Constraints.new(dispatcher(defaults.key?(:controller)), blocks, Constraints::SERVE)
+            if to.is_a?(Class) && to < ActionController::Metal
+              Routing::RouteSet::StaticDispatcher.new to
             else
-              dispatcher(defaults.key?(:controller))
+              if to.respond_to?(:call)
+                Constraints.new(to, blocks, Constraints::CALL)
+              elsif blocks.any?
+                Constraints.new(dispatcher(defaults.key?(:controller)), blocks, Constraints::SERVE)
+              else
+                dispatcher(defaults.key?(:controller))
+              end
             end
           end
 
@@ -368,7 +370,7 @@ module ActionDispatch
           end
 
           def dispatcher(raise_on_name_error)
-            @set.dispatcher raise_on_name_error
+            Routing::RouteSet::Dispatcher.new raise_on_name_error
           end
       end
 

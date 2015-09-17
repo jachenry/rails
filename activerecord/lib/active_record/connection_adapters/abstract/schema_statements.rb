@@ -23,6 +23,11 @@ module ActiveRecord
         table_name[0...table_alias_length].tr('.', '_')
       end
 
+      # Returns an array of table names defined in the database.
+      def tables(name = nil)
+        raise NotImplementedError, "#tables is not implemented"
+      end
+
       # Checks to see if the table +table_name+ exists on the database.
       #
       #   table_exists?(:developers)
@@ -153,7 +158,7 @@ module ActiveRecord
       # generates:
       #
       #   CREATE TABLE suppliers (
-      #     id int(11) DEFAULT NULL auto_increment PRIMARY KEY
+      #     id int(11) auto_increment PRIMARY KEY
       #   ) ENGINE=InnoDB DEFAULT CHARSET=utf8
       #
       # ====== Rename the primary key column
@@ -165,7 +170,7 @@ module ActiveRecord
       # generates:
       #
       #   CREATE TABLE objects (
-      #     guid int(11) DEFAULT NULL auto_increment PRIMARY KEY,
+      #     guid int(11) auto_increment PRIMARY KEY,
       #     name varchar(80)
       #   )
       #
@@ -607,10 +612,7 @@ module ActiveRecord
       #   remove_index :accounts, name: :by_branch_party
       #
       def remove_index(table_name, options = {})
-        remove_index!(table_name, index_name_for_remove(table_name, options))
-      end
-
-      def remove_index!(table_name, index_name) #:nodoc:
+        index_name = index_name_for_remove(table_name, options)
         execute "DROP INDEX #{quote_column_name(index_name)} ON #{quote_table_name(table_name)}"
       end
 
@@ -857,7 +859,7 @@ module ActiveRecord
         ActiveRecord::SchemaMigration.create_table
       end
 
-      def assume_migrated_upto_version(version, migrations_paths = ActiveRecord::Migrator.migrations_paths)
+      def assume_migrated_upto_version(version, migrations_paths)
         migrations_paths = Array(migrations_paths)
         version = version.to_i
         sm_table = quote_table_name(ActiveRecord::Migrator.schema_migrations_table_name)

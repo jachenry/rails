@@ -13,12 +13,14 @@ require 'action_dispatch/http/url'
 require 'active_support/core_ext/array/conversions'
 
 module ActionDispatch
-  class Request < Rack::Request
+  class Request
+    include Rack::Request::Helpers
     include ActionDispatch::Http::Cache::Request
     include ActionDispatch::Http::MimeNegotiation
     include ActionDispatch::Http::Parameters
     include ActionDispatch::Http::FilterParameters
     include ActionDispatch::Http::URL
+    include Rack::Request::Env
 
     autoload :Session, 'action_dispatch/request/session'
     autoload :Utils,   'action_dispatch/request/utils'
@@ -35,7 +37,8 @@ module ActionDispatch
         HTTP_ACCEPT_LANGUAGE HTTP_CACHE_CONTROL HTTP_FROM
         HTTP_NEGOTIATE HTTP_PRAGMA HTTP_CLIENT_IP
         HTTP_X_FORWARDED_FOR HTTP_VERSION
-        HTTP_X_REQUEST_ID
+        HTTP_X_REQUEST_ID HTTP_X_FORWARDED_HOST
+        SERVER_ADDR
         ].freeze
 
     ENV_METHODS.each do |env|
@@ -67,16 +70,23 @@ module ActionDispatch
       end
     end
 
+    PASS_NOT_FOUND = Class.new { # :nodoc:
+      def self.action(_); self; end
+      def self.call(_); [404, {'X-Cascade' => 'pass'}, []]; end
+    }
+
     def controller_class
       check_path_parameters!
       params = path_parameters
-      controller_param = params[:controller].underscore if params.key?(:controller)
-      params[:action] ||= 'index'
 
-      yield unless controller_param
-
-      const_name = "#{controller_param.camelize}Controller"
-      ActiveSupport::Dependencies.constantize(const_name)
+      if params.key?(:controller)
+        controller_param = params[:controller].underscore
+        params[:action] ||= 'index'
+        const_name = "#{controller_param.camelize}Controller"
+        ActiveSupport::Dependencies.constantize(const_name)
+      else
+        PASS_NOT_FOUND
+      end
     end
 
     def key?(key)
@@ -148,6 +158,10 @@ module ActionDispatch
 
     def controller_instance=(controller) # :nodoc:
       set_header('action_controller.instance'.freeze, controller)
+    end
+
+    def http_auth_salt
+      get_header "action_dispatch.http_auth_salt"
     end
 
     def show_exceptions? # :nodoc:
@@ -310,7 +324,7 @@ module ActionDispatch
       else
         self.session = {}
       end
-      set_header('action_dispatch.request.flash_hash', nil)
+      self.flash = nil
     end
 
     def session=(session) #:nodoc:
@@ -323,7 +337,9 @@ module ActionDispatch
 
     # Override Rack's GET method to support indifferent access
     def GET
-      @env["action_dispatch.request.query_parameters"] ||= normalize_encode_params(super || {})
+      fetch_header("action_dispatch.request.query_parameters") do |k|
+        set_header k, Request::Utils.normalize_encode_params(super || {})
+      end
     rescue Rack::Utils::ParameterTypeError, Rack::Utils::InvalidParameterError => e
       raise ActionController::BadRequest.new(:query, e)
     end
@@ -331,7 +347,9 @@ module ActionDispatch
 
     # Override Rack's POST method to support indifferent access
     def POST
-      @env["action_dispatch.request.request_parameters"] ||= normalize_encode_params(super || {})
+      fetch_header("action_dispatch.request.request_parameters") do
+        self.request_parameters = Request::Utils.normalize_encode_params(super || {})
+      end
     rescue Rack::Utils::ParameterTypeError, Rack::Utils::InvalidParameterError => e
       raise ActionController::BadRequest.new(:request, e)
     end
@@ -346,12 +364,13 @@ module ActionDispatch
       get_header('REDIRECT_X_HTTP_AUTHORIZATION')
     end
 
-    # True if the request came from localhost, 127.0.0.1.
+    # True if the request came from localhost, 127.0.0.1, or ::1.
     def local?
       LOCALHOST =~ remote_addr && LOCALHOST =~ remote_ip
     end
 
     def request_parameters=(params)
+      raise if params.nil?
       set_header("action_dispatch.request.request_parameters".freeze, params)
     end
 

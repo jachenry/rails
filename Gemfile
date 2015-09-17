@@ -6,8 +6,8 @@ gemspec
 gem 'rake', '>= 10.3'
 
 # Active Job depends on the URI::GID::MissingModelIDError, which isn't released yet.
-gem 'globalid', github: 'rails/globalid'
-gem 'rack', github: 'rack/rack'
+gem 'globalid', github: 'rails/globalid', branch: 'master'
+gem 'rack', github: 'rack/rack', branch: 'master'
 
 # This needs to be with require false as it is
 # loaded after loading the test library to
@@ -19,7 +19,7 @@ gem 'jquery-rails', github: 'rails/jquery-rails', branch: 'master'
 gem 'coffee-rails', '~> 4.1.0'
 gem 'turbolinks'
 gem 'arel', github: 'rails/arel', branch: 'master'
-gem 'mail', github: 'mikel/mail'
+gem 'mail', github: 'mikel/mail', branch: 'master'
 
 gem 'sprockets', github: 'rails/sprockets', branch: 'master'
 gem 'sprockets-rails', github: 'rails/sprockets-rails', branch: 'master'
@@ -52,7 +52,7 @@ group :job do
   gem 'sidekiq', require: false
   gem 'sucker_punch', require: false
   gem 'delayed_job', require: false
-  gem 'queue_classic', github: "QueueClassic/queue_classic", require: false, platforms: :ruby
+  gem 'queue_classic', github: "QueueClassic/queue_classic", branch: 'master', require: false, platforms: :ruby
   gem 'sneakers', require: false
   gem 'que', require: false
   gem 'backburner', require: false
@@ -79,7 +79,7 @@ group :test do
 end
 
 platforms :ruby do
-  gem 'nokogiri', '>= 1.4.5'
+  gem 'nokogiri', '>= 1.6.7.rc3'
 
   # Needed for compiling the ActionDispatch::Journey parser
   gem 'racc', '>=1.4.6', require: false
@@ -90,7 +90,7 @@ platforms :ruby do
   group :db do
     gem 'pg', '>= 0.18.0'
     gem 'mysql', '>= 2.9.0'
-    gem 'mysql2', '>= 0.3.18'
+    gem 'mysql2', '>= 0.4.0'
   end
 end
 
@@ -127,3 +127,4 @@ end
 
 # A gem necessary for ActiveRecord tests with IBM DB
 gem 'ibm_db' if ENV['IBM_DB']
+gem 'tzinfo-data', platforms: [:mingw, :mswin, :x64_mingw, :jruby]

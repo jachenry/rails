@@ -1,7 +1,58 @@
+*   Lookup the attribute name for `restrict_with_error` messages on the
+    model class that defines the association.
+
+    *kuboon*, *Ronak Jangir*
+
+*   Correct query for PostgreSQL 8.2 compatibility.
+
+    *Ben Murphy*, *Matthew Draper*
+
+*   `bin/rake db:migrate` uses
+    `ActiveRecord::Tasks::DatabaseTasks.migrations_paths` instead of
+    `Migrator.migrations_paths`.
+
+    *Tobias Bielohlawek*
+
+*   Support dropping indexes concurrently in PostgreSQL.
+
+    See http://www.postgresql.org/docs/9.4/static/sql-dropindex.html for more
+    details.
+
+    *Grey Baker*
+
+*   Deprecate passing conditions to `ActiveRecord::Relation#delete_all`
+    and `ActiveRecord::Relation#destroy_all`.
+
+    *Wojciech Wnętrzak*
+
+*   PostgreSQL, `create_schema`, `drop_schema` and `rename_table` now quote
+    schema names.
+
+    Fixes #21418.
+
+    Example:
+
+        create_schema("my.schema")
+        # CREATE SCHEMA "my.schema";
+
+    *Yves Senn*
+
+*   PostgreSQL, add `:if_exists` option to `#drop_schema`. This makes it
+    possible to drop a schema that might exist without raising an exception if
+    it doesn't.
+
+    *Yves Senn*
+
+*   Only try to nullify has_one target association if the record is persisted.
+
+    Fixes #21223.
+
+    *Agis Anastasopoulos*
+
 *   Uniqueness validator raises descriptive error when running on a persisted
     record without primary key.
 
-    Closes #21304.
+    Fixes #21304.
 
     *Yves Senn*
 
@@ -17,7 +68,7 @@
 
 *   Descriptive error message when fixtures contain a missing column.
 
-    Closes #21201.
+    Fixes #21201.
 
     *Yves Senn*
 
@@ -41,11 +92,11 @@
           sleep 10 # Throttles the delete queries
         end
 
-    Closes #20933.
+    Fixes #20933.
 
     *Sina Siadat*
 
-*   Added methods for PostgreSQL geometric data types to use in migrations
+*   Added methods for PostgreSQL geometric data types to use in migrations.
 
     Example:
 
@@ -1071,7 +1122,7 @@
 
 *   `eager_load` preserves readonly flag for associations.
 
-    Closes #15853.
+    Fixes #15853.
 
     *Takashi Kokubun*
 
@@ -1127,7 +1178,7 @@
 *   Fix bug with `ActiveRecord::Type::Numeric` that caused negative values to
     be marked as having changed when set to the same negative value.
 
-    Closes #18161.
+    Fixes #18161.
 
     *Daniel Fox*
 
@@ -1142,7 +1193,7 @@
     before loading the schema. This is left for the user to do.
     `db:test:prepare` will still purge the database.
 
-    Closes #17945.
+    Fixes #17945.
 
     *Yves Senn*
 

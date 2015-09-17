@@ -946,6 +946,34 @@ class BasicsTest < ActiveRecord::TestCase
     assert_equal BigDecimal("1000234000567.95"), m1.big_bank_balance
   end
 
+  def test_numeric_fields_with_scale
+    m = NumericData.new(
+      :bank_balance => 1586.43122334,
+      :big_bank_balance => BigDecimal("234000567.952344"),
+      :world_population => 6000000000,
+      :my_house_population => 3
+    )
+    assert m.save
+
+    m1 = NumericData.find(m.id)
+    assert_not_nil m1
+
+    # As with migration_test.rb, we should make world_population >= 2**62
+    # to cover 64-bit platforms and test it is a Bignum, but the main thing
+    # is that it's an Integer.
+    assert_kind_of Integer, m1.world_population
+    assert_equal 6000000000, m1.world_population
+
+    assert_kind_of Fixnum, m1.my_house_population
+    assert_equal 3, m1.my_house_population
+
+    assert_kind_of BigDecimal, m1.bank_balance
+    assert_equal BigDecimal("1586.43"), m1.bank_balance
+
+    assert_kind_of BigDecimal, m1.big_bank_balance
+    assert_equal BigDecimal("234000567.95"), m1.big_bank_balance
+  end
+
   def test_auto_id
     auto = AutoId.new
     auto.save
@@ -1271,9 +1299,10 @@ class BasicsTest < ActiveRecord::TestCase
   end
 
   def test_compute_type_no_method_error
-    ActiveSupport::Dependencies.stubs(:safe_constantize).raises(NoMethodError)
-    assert_raises NoMethodError do
-      ActiveRecord::Base.send :compute_type, 'InvalidModel'
+    ActiveSupport::Dependencies.stub(:safe_constantize, proc{ raise NoMethodError }) do
+      assert_raises NoMethodError do
+        ActiveRecord::Base.send :compute_type, 'InvalidModel'
+      end
     end
   end
 
@@ -1287,18 +1316,20 @@ class BasicsTest < ActiveRecord::TestCase
       error = e
     end
 
-    ActiveSupport::Dependencies.stubs(:safe_constantize).raises(e)
+    ActiveSupport::Dependencies.stub(:safe_constantize, proc{ raise e }) do
 
-    exception = assert_raises NameError do
-      ActiveRecord::Base.send :compute_type, 'InvalidModel'
+      exception = assert_raises NameError do
+        ActiveRecord::Base.send :compute_type, 'InvalidModel'
+      end
+      assert_equal error.message, exception.message
     end
-    assert_equal error.message, exception.message
   end
 
   def test_compute_type_argument_error
-    ActiveSupport::Dependencies.stubs(:safe_constantize).raises(ArgumentError)
-    assert_raises ArgumentError do
-      ActiveRecord::Base.send :compute_type, 'InvalidModel'
+    ActiveSupport::Dependencies.stub(:safe_constantize, proc{ raise ArgumentError }) do
+      assert_raises ArgumentError do
+        ActiveRecord::Base.send :compute_type, 'InvalidModel'
+      end
     end
   end
 

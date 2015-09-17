@@ -363,11 +363,8 @@ controller modules by default:
 - `ActionController::Renderers::All`: Support for `render :json` and friends.
 - `ActionController::ConditionalGet`: Support for `stale?`.
 - `ActionController::ForceSSL`: Support for `force_ssl`.
-- `ActionController::RackDelegation`: Support for the `request` and `response`
-  methods returning `ActionDispatch::Request` and `ActionDispatch::Response`
-  objects.
 - `ActionController::DataStreaming`: Support for `send_file` and `send_data`.
-- `AbstractController::Callbacks`: Support for `before_filter` and friends.
+- `AbstractController::Callbacks`: Support for `before_action` and friends.
 - `ActionController::Instrumentation`: Support for the instrumentation
   hooks defined by Action Controller (see [the instrumentation
   guide](active_support_instrumentation.html#action-controller)).
@@ -397,7 +394,7 @@ Some common modules you might want to add:
 
 - `AbstractController::Translation`: Support for the `l` and `t` localization
   and translation methods.
-- `ActionController::HTTPAuthentication::Basic` (or `Digest` or `Token`): Support
+- `ActionController::HttpAuthentication::Basic` (or `Digest` or `Token`): Support
   for basic, digest or token HTTP authentication.
 - `AbstractController::Layouts`: Support for layouts when rendering.
 - `ActionController::MimeResponds`: Support for `respond_to`.

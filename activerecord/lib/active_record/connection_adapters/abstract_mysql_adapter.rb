@@ -727,8 +727,10 @@ module ActiveRecord
 
       # SHOW VARIABLES LIKE 'name'
       def show_variable(name)
-        variables = select_all("SHOW VARIABLES LIKE '#{name}'", 'SCHEMA')
+        variables = select_all("select @@#{name} as 'Value'", 'SCHEMA')
         variables.first['Value'] unless variables.empty?
+      rescue ActiveRecord::StatementInvalid
+        nil
       end
 
       # Returns a table's primary key and belonging sequence.
@@ -978,14 +980,14 @@ module ActiveRecord
         defaults = [':default', :default].to_set
 
         # Make MySQL reject illegal values rather than truncating or blanking them, see
-        # http://dev.mysql.com/doc/refman/5.6/en/sql-mode.html#sqlmode_strict_all_tables
+        # http://dev.mysql.com/doc/refman/5.7/en/sql-mode.html#sqlmode_strict_all_tables
         # If the user has provided another value for sql_mode, don't replace it.
         unless variables.has_key?('sql_mode') || defaults.include?(@config[:strict])
           variables['sql_mode'] = strict_mode? ? 'STRICT_ALL_TABLES' : ''
         end
 
         # NAMES does not have an equals sign, see
-        # http://dev.mysql.com/doc/refman/5.6/en/set-statement.html#id944430
+        # http://dev.mysql.com/doc/refman/5.7/en/set-statement.html#id944430
         # (trailing comma because variable_assignments will always have content)
         if @config[:encoding]
           encoding = "NAMES #{@config[:encoding]}"
@@ -1025,7 +1027,7 @@ module ActiveRecord
         when 0..0xfff;           "varbinary(#{limit})"
         when nil;                "blob"
         when 0x1000..0xffffffff; "blob(#{limit})"
-        else raise(ActiveRecordError, "No binary type has character length #{limit}")
+        else raise(ActiveRecordError, "No binary type has byte length #{limit}")
         end
       end
 
@@ -1046,7 +1048,7 @@ module ActiveRecord
         when nil, 0x100..0xffff;    'text'
         when 0x10000..0xffffff;     'mediumtext'
         when 0x1000000..0xffffffff; 'longtext'
-        else raise(ActiveRecordError, "No text type has character length #{limit}")
+        else raise(ActiveRecordError, "No text type has byte length #{limit}")
         end
       end
 

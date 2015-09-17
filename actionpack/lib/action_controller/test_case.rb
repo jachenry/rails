@@ -36,11 +36,11 @@ module ActionController
     end
 
     def query_string=(string)
-      @env[Rack::QUERY_STRING] = string
+      set_header Rack::QUERY_STRING, string
     end
 
-    def request_parameters=(params)
-      @env["action_dispatch.request.request_parameters"] = params
+    def content_type=(type)
+      set_header 'CONTENT_TYPE', type
     end
 
     def assign_parameters(routes, controller_path, action, parameters, generated_path, query_string_keys)
@@ -67,16 +67,20 @@ module ActionController
         end
       else
         if ENCODER.should_multipart?(non_path_parameters)
-          @env['CONTENT_TYPE'] = ENCODER.content_type
+          self.content_type = ENCODER.content_type
           data = ENCODER.build_multipart non_path_parameters
         else
-          @env['CONTENT_TYPE'] ||= 'application/x-www-form-urlencoded'
+          fetch_header('CONTENT_TYPE') do |k|
+            set_header k, 'application/x-www-form-urlencoded'
+          end
 
           # FIXME: setting `request_parametes` is normally handled by the
           # params parser middleware, and we should remove this roundtripping
           # when we switch to caling `call` on the controller
 
-          case content_mime_type.ref
+          case content_mime_type.to_sym
+          when nil
+            raise "Unknown Content-Type: #{content_type}"
           when :json
             data = ActiveSupport::JSON.encode(non_path_parameters)
             params = ActiveSupport::JSON.decode(data).with_indifferent_access
@@ -88,15 +92,18 @@ module ActionController
           when :url_encoded_form
             data = non_path_parameters.to_query
           else
-            raise "Unknown Content-Type: #{content_type}"
+            data = non_path_parameters.to_query
+            self.request_parameters = non_path_parameters
           end
         end
 
-        @env['CONTENT_LENGTH'] = data.length.to_s
-        @env['rack.input'] = StringIO.new(data)
+        set_header 'CONTENT_LENGTH', data.length.to_s
+        set_header 'rack.input', StringIO.new(data)
       end
 
-      @env["PATH_INFO"] ||= generated_path
+      fetch_header("PATH_INFO") do |k|
+        set_header k, generated_path
+      end
       path_parameters[:controller] = controller_path
       path_parameters[:action] = action
 
@@ -145,7 +152,7 @@ module ActionController
   # Methods #destroy and #load! are overridden to avoid calling methods on the
   # @store object, which does not exist for the TestSession class.
   class TestSession < Rack::Session::Abstract::SessionHash #:nodoc:
-    DEFAULT_OPTIONS = Rack::Session::Abstract::ID::DEFAULT_OPTIONS
+    DEFAULT_OPTIONS = Rack::Session::Abstract::Persisted::DEFAULT_OPTIONS
 
     def initialize(session = {})
       super(nil, nil)
@@ -170,8 +177,8 @@ module ActionController
       clear
     end
 
-    def fetch(*args, &block)
-      @data.fetch(*args, &block)
+    def fetch(key, *args, &block)
+      @data.fetch(key.to_s, *args, &block)
     end
 
     private
@@ -450,7 +457,7 @@ module ActionController
         end
 
         if body.present?
-          @request.env['RAW_POST_DATA'] = body
+          @request.set_header 'RAW_POST_DATA', body
         end
 
         if http_method.present?
@@ -472,15 +479,16 @@ module ActionController
         end
 
         self.cookies.update @request.cookies
-        @request.env['HTTP_COOKIE'] = cookies.to_header
-        @request.env['action_dispatch.cookies'] = nil
+        self.cookies.update_cookies_from_jar
+        @request.set_header 'HTTP_COOKIE', cookies.to_header
+        @request.delete_header 'action_dispatch.cookies'
 
         @request          = TestRequest.new scrub_env!(@request.env), @request.session
         @response         = build_response @response_klass
         @response.request = @request
         @controller.recycle!
 
-        @request.env['REQUEST_METHOD'] = http_method
+        @request.set_header 'REQUEST_METHOD', http_method
 
         parameters = parameters.symbolize_keys
 
@@ -494,24 +502,28 @@ module ActionController
         @request.flash.update(flash || {})
 
         if xhr
-          @request.env['HTTP_X_REQUESTED_WITH'] = 'XMLHttpRequest'
-          @request.env['HTTP_ACCEPT'] ||= [Mime::JS, Mime::HTML, Mime::XML, 'text/xml', Mime::ALL].join(', ')
+          @request.set_header 'HTTP_X_REQUESTED_WITH', 'XMLHttpRequest'
+          @request.fetch_header('HTTP_ACCEPT') do |k|
+            @request.set_header k, [Mime::JS, Mime::HTML, Mime::XML, 'text/xml', Mime::ALL].join(', ')
+          end
         end
 
         @controller.request  = @request
         @controller.response = @response
 
-        @request.env["SCRIPT_NAME"] ||= @controller.config.relative_url_root
+        @request.fetch_header("SCRIPT_NAME") do |k|
+          @request.set_header k, @controller.config.relative_url_root
+        end
 
         @controller.recycle!
         @controller.process(action)
 
-        @request.env.delete 'HTTP_COOKIE'
+        @request.delete_header 'HTTP_COOKIE'
 
-        if cookies = @request.env['action_dispatch.cookies']
+        if @request.have_cookie_jar?
           unless @response.committed?
-            cookies.write(@response)
-            self.cookies.update(cookies.instance_variable_get(:@cookies))
+            @request.cookie_jar.write(@response)
+            self.cookies.update(@request.cookie_jar.instance_variable_get(:@cookies))
           end
         end
         @response.prepare!
@@ -523,8 +535,8 @@ module ActionController
         end
 
         if xhr
-          @request.env.delete 'HTTP_X_REQUESTED_WITH'
-          @request.env.delete 'HTTP_ACCEPT'
+          @request.delete_header 'HTTP_X_REQUESTED_WITH'
+          @request.delete_header 'HTTP_ACCEPT'
         end
         @request.query_string = ''
 
