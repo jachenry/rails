@@ -135,7 +135,7 @@ module ActionController
     end
 
     def self.make_response!(request)
-      ActionDispatch::Response.new.tap do |res|
+      ActionDispatch::Response.create.tap do |res|
         res.request = request
       end
     end
@@ -187,6 +187,7 @@ module ActionController
       set_request!(request)
       set_response!(response)
       process(name)
+      request.commit_flash
       to_a
     end
 
