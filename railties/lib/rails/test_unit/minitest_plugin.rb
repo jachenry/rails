@@ -14,6 +14,8 @@ module Minitest
     opts.separator ""
     opts.separator "    bin/rails test test/controllers test/integration/login_test.rb"
     opts.separator ""
+    opts.separator "By default test failures and errors are reported inline during a run."
+    opts.separator ""
 
     opts.separator "Rails options:"
     opts.on("-e", "--environment ENV",
@@ -24,6 +26,16 @@ module Minitest
     opts.on("-b", "--backtrace",
             "Show the complete backtrace") do
       options[:full_backtrace] = true
+    end
+
+    opts.on("-d", "--defer-output",
+            "Output test failures and errors after the test run") do
+      options[:output_inline] = false
+    end
+
+    opts.on("-f", "--fail-fast",
+            "Abort test run on first failure") do
+      options[:fail_fast] = true
     end
 
     options[:patterns] = opts.order!
@@ -42,7 +54,8 @@ module Minitest
     ENV["RAILS_ENV"] = options[:environment] || "test"
 
     unless run_with_autorun
-      ::Rails::TestRequirer.require_files @rake_patterns || options[:patterns]
+      patterns = defined?(@rake_patterns) ? @rake_patterns : options[:patterns]
+      ::Rails::TestRequirer.require_files(patterns)
     end
 
     unless options[:full_backtrace] || ENV["BACKTRACE"]
